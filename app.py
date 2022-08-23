@@ -5,11 +5,12 @@ from dash.dependencies import Output, Input
 import pandas as pd
 import dash_daq as daq
 from .intensity_plotter.DirectoryReplay import DirectoryReplay
+from pathlib import Path
 
 
-data_directory = "data/source"
-directory_replay = DirectoryReplay(data_directory, time_interval=0)
-datafiles = sorted(os.listdir(data_directory))
+data_directory = Path("data/source") # .dat files directory
+directory_replay = DirectoryReplay(data_directory, number_of_curves=10)
+#datafiles = sorted(os.listdir(data_directory))
 
 app = Dash(__name__, external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" ])
 
@@ -85,6 +86,7 @@ def update_graph_scatter(n_intervals, boolean_switch, scale, number_of_curves, p
     
     data_dataframe = pd.DataFrame(columns=["I", "q", "t"])
     data_slice = datafiles[n_intervals:number_of_curves+n_intervals]
+    data_slice = [next(directory_replay) for i in number_of_curves]
     for i, datafile in enumerate(data_slice):
         if datafile.endswith(".dat"):
             datafile_path = os.path.join(data_directory, datafile)
