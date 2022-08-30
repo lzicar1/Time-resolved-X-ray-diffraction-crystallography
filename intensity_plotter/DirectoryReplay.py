@@ -36,17 +36,14 @@ class DirectoryReplay:
         """ 
         Replay an experiment from a given directory
         """
-        # time_interval=0, number_of_curves=10,
         self.experiment_directory = experiment_directory
         self.range = range
         self.counter = self.range[0]
         self.files = sorted(os.listdir(self.experiment_directory))[self.range[0] : self.range[1]]
         self.files_loop = CyclicalList(self.files)
         self.files_len = len(self.files)
-        # self.time_interval = time_interval
-        # self.number_of_curves = number_of_curves
     
-    def fetchCurves(self, instantly=True, time_interval=0.5, number_of_curves=10):
+    def fetchData(self, instantly=True, time_interval=0.5, number_of_curves=10):
         while self.counter <= self.range[1]:
             batch = []
             for file in self.files[self.counter:number_of_curves + self.counter]:
@@ -56,7 +53,7 @@ class DirectoryReplay:
             self.counter += 1
             yield batch
     
-    def fetchCurvesLoop(self, instantly=True, time_interval=0.5, number_of_curves=10):
+    def fetchDataLoop(self, instantly=True, time_interval=0.5, number_of_curves=10):
         while True:
             batch = []
             for file in self.files_loop[self.counter:number_of_curves + self.counter]:

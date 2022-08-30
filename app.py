@@ -4,13 +4,33 @@ from dash import html, dcc, ctx, Dash
 from dash.dependencies import Output, Input
 import pandas as pd
 import dash_daq as daq
-from .intensity_plotter.DirectoryReplay import DirectoryReplay
+from intensity_plotter.DirectoryReplay import DirectoryReplay
+from intensity_plotter.InitializePlotter import InititalizePlotter
 from pathlib import Path
 
+### Initialization ###
 
-data_directory = Path("data/source") # .dat files directory
-directory_replay = DirectoryReplay(data_directory, number_of_curves=10)
-#datafiles = sorted(os.listdir(data_directory))
+data_directory = r"data/source" # .dat files directory
+file_prefix = r"C5_mesh_1_data.cbf" #prefix of .dat files (the rest is the number)
+plotter = InititalizePlotter(drop_first = 5, 
+                             drop_last = 5, 
+                             cut_values_below = 0) # initialize plotter
+directory_replay = DirectoryReplay(data_directory)
+
+def getFileNumber(file_path, file_prefix):
+    """_summary_
+    Example:
+    file_path = r"data/source/C5_mesh_1_data.cbf000110.dat"
+    file_prefix = r"C5_mesh_1_data.cbf"
+    number = 110
+    """
+    string = file_path.split(file_prefix)[1]
+    number = int(string.split('.dat')[0])
+    return number
+    
+    
+
+### Dash App ###
 
 app = Dash(__name__, external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" ])
 
@@ -54,6 +74,16 @@ app.layout = html.Div(
         html.P("Number of curves"),
         dcc.Slider(id='slider_num_curves', min=1, max=100, step=10, value=30,
                 marks={x: str(x) for x in list(range(0,100,5))}),
+        
+        html.P("Aspect ratio X"),
+        dcc.Slider(id='aspect_x', min=1, max=10, step=1, value=2,
+                marks={x: str(x) for x in list(range(0,10,1))}),
+        html.P("Aspect ratio Y"),
+        dcc.Slider(id='aspect_y', min=1, max=10, step=1, value=5,
+                marks={x: str(x) for x in list(range(0,10,1))}),
+        html.P("Aspect ratio Z"),
+        dcc.Slider(id='aspect_z', min=1, max=10, step=1, value=1,
+                marks={x: str(x) for x in list(range(0,10,1))}),
         html.P("Interval"),
         dcc.Slider(id='slider_interval', min=100, max=2000, step=200, value=1000,
                 marks={x: str(x) for x in list(range(0,2000,200))}),
@@ -76,21 +106,24 @@ def update_interval(value):
               Input('update-switch', 'on'),
               Input('scale-dropdown', 'value'),
               Input('slider_num_curves', 'value'),
+              Input('aspect_x', 'value'),
+              Input('aspect_y', 'value'),
+              Input('aspect_z', 'value'),
             Input('perspective-dropdown', 'value'),
             Input('style-dropdown', 'value')
             )
-def update_graph_scatter(n_intervals, boolean_switch, scale, number_of_curves, perspective, style):
-    if (n_intervals is None) or boolean_switch:
-        return dash.no_update
+def update_graph_scatter(n_intervals, boolean_switch, scale, number_of_curves, aspect_x, aspect_y, aspect_z, perspective, style):
+    # if (n_intervals is None) or boolean_switch:
+    #     return dash.no_update
     
     
     data_dataframe = pd.DataFrame(columns=["I", "q", "t"])
-    data_slice = datafiles[n_intervals:number_of_curves+n_intervals]
-    data_slice = [next(directory_replay) for i in number_of_curves]
+    data_slice = next(directory_replay.fetchDataLoop(number_of_curves=number_of_curves, instantly=True))
+    
     for i, datafile in enumerate(data_slice):
         if datafile.endswith(".dat"):
-            datafile_path = os.path.join(data_directory, datafile)
-            new_curve = get_trace(datafile_path, time=i)
+            file_number = getFileNumber(datafile, file_prefix)
+            new_curve = plotter.getCurve(datafile, time=file_number)
             data_dataframe = data_dataframe.append(new_curve, ignore_index=True)
     
     X = data_dataframe['I']
@@ -110,9 +143,17 @@ def update_graph_scatter(n_intervals, boolean_switch, scale, number_of_curves, p
     #         ),
     #     uirevision=42) 
     # fig = go.Figure(data=scatter, layout=layout)
-    fig = figure_function(X, Y, Z, scale=scale, perspective=perspective, graph_style=style)
+    fig = plotter.getFigure(X,
+                            Y, 
+                            Z,
+                            aspect_x,
+                            aspect_y,
+                            aspect_z, 
+                            scale=scale, 
+                            perspective=perspective, 
+                            graph_style=style)
     #fig.update(layout=go.Layout(uirevision=42))
     #print(fig.camera_eye)
     return fig
 
-app.run_server(port=8051)
+app.run_server(port=8052)
